@@ -1,0 +1,14 @@
+
+<div class="search-box-container">
+    <div title="{{advSearchCriteria}}" *ngIf="advSearchValList.length == 0">
+        <input class="form-control adv-search-box" placeholder="Please enter Space to continue" (keydown)="onKeyDown($event)">
+        <i *ngIf="advSearchValList.length == 0 ||  statusOfSearchCriteria" class="fa fa-search" aria-hidden="true" (click)="clickedOnSearchCriteria()"></i>
+        <i *ngIf="advSearchValList.length != 0 && !statusOfSearchCriteria" class="fa fa-times" aria-hidden="true" (click)="clickedOnClearCriteria()"></i>
+    </div>
+    <div title="{{advSearchCriteria}}" *ngIf="advSearchValList.length > 0">
+       <h1>Test</h1> 
+    </div>
+    <div *ngIf="showSuggetionBox" id="suggestionBoxContainer" class="suggestion-list">
+            <li (click)="selectListElement(col,$event)" id="suggestion-list-element" *ngFor="let col of suggestionList">{{col.displayName}}</li>
+    </div>    
+</div>
