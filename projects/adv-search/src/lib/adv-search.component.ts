@@ -25,7 +25,7 @@ export class AdvSearchComponent implements OnInit {
   currentGroupId = '';
   statusOfSearchCriteria = false;
   listOfLookUpValues = [];
-  lastArithmeticOperator ;
+  lastArithmeticOperator;
   lastIndex = 0;
 
   @Input() suggestions;
@@ -139,10 +139,543 @@ export class AdvSearchComponent implements OnInit {
   }
 
 
+  /** will be called on key down in the query box*/
 
-  onKeyDown(event) {
-    console.log('event ::', event);
+  onKeyDown(obj) {
+    let { event, item } = obj;
+    let array = [35, 36, 37, 39, 8, 46];
+    let matchedKey = array.find(key => key === event.which);
+    if (!matchedKey) { event.preventDefault(); }
+    this.handleEventBasedOnAction(event, item);
   }
+
+  /** provides a action based on event*/
+  handleEventBasedOnAction(event, item) {
+    switch (event.code) {
+      case 'Space':
+        this.prepareQueryForAdvSearch(event, item);
+        break;
+      case 'Backspace':
+        this.handleBackSpace(event, item);
+        break;
+      case 'Delete':
+        this.handleBackSpace(event, item);
+        break;
+      case 'Enter':
+        this.handleEnterEvent()
+    }
+  }
+
+
+  /** prepares search criteria */
+  handleEnterEvent() {
+    if (this.statusOfSearchCriteria) {
+      this.advSearchCriteria = '';
+      this.searchCriteriaOnRibbon = '';
+      this.updateSearchCriteria(this.advSearchValList);
+      this.removeOuterParantheses();
+      this.preparePayloadOfAdvSearch();
+    } else {
+      console.log('Please enter search criteria')
+    }
+  }
+
+  /** it will pass the payload to parent control */
+  preparePayloadOfAdvSearch() {
+    let criteria = this.advSearchCriteria.trim();
+    let criteriaOnRibbon = this.searchCriteriaOnRibbon.trim();
+    let payload = {
+      query: criteria
+    }
+    // this.submitAdvsearch()(payload, this.advSearchValList, criteriaOnRibbon);
+  }
+
+
+  /** Removing outer parantheses , API team Needed With out outer parentheses */
+  removeOuterParantheses() {
+    let str = this.advSearchCriteria.trim();
+    let strLength = str.length;
+
+    if (str && str[0] === '(' && str[strLength - 1] === ')') {
+      this.checkStatusOfCriteriaOnRemoveParanthese(str);
+    }
+  }
+
+  /** check and removes outer paranhteses */
+  checkStatusOfCriteriaOnRemoveParanthese(str) {
+    let arr = JSON.parse(JSON.stringify(this.advSearchValList));
+    let length = arr.length;
+    if (length === 2 && arr[0].key === '(') {
+      str = str.substr(1);
+      str = str.slice(0, -1);
+      this.advSearchCriteria = str;
+    }
+  }
+
+
+  /** will be called on search event and prepares search criteria */
+  updateSearchCriteria(arr) {
+    arr.forEach((item, index) => {
+      if (item.hasGroup) {
+        this.advSearchCriteria = this.advSearchCriteria + ' ' + item['key'];
+        this.searchCriteriaOnRibbon = this.searchCriteriaOnRibbon + ' ' + item['key'];
+        this.updateSearchCriteria(item.group);
+      } else {
+        let hasLatLang = this.checkWithLatLangOnNext(item, index);
+        this.concatinateSearchCriteria(item, hasLatLang);
+      }
+    });
+  }
+
+  /** update the search criteria with valid text */
+  concatinateSearchCriteria(item, flag) {
+    let array = ['column', 'arithmeticOperator', 'value', 'logicalOperator'];
+    if (item.type === 'paranthesis') {
+      let logicalOperatorKey = (item['logicalOperator']) ? item['logicalOperator'].key : '';
+      let logicalOperatorDisplayName = (item['logicalOperator']) ? item['logicalOperator'].displayName : '';
+      this.advSearchCriteria = this.advSearchCriteria + item['key'] + ' ' + logicalOperatorKey;
+      this.searchCriteriaOnRibbon = this.searchCriteriaOnRibbon + item['key'] + ' ' + logicalOperatorDisplayName;
+    } else {
+      array.forEach(type => {
+        let val = item[type];
+        let valForRibbonCriteria = item[type];
+        if (val && type === 'column') {
+          val = val.key;
+          valForRibbonCriteria = valForRibbonCriteria.displayName;
+        }
+        if (val && type === 'arithmeticOperator') {
+          val = val.key;
+          valForRibbonCriteria = valForRibbonCriteria.displayName;
+        }
+
+        if (val && type === 'logicalOperator') {
+          val = val.key;
+          valForRibbonCriteria = valForRibbonCriteria.displayName;
+        }
+
+        if (val && type === 'value') {
+          val = this.checkwithLikeOperator(val, item);
+          val = this.getFormatedValue(val, item);
+        }
+
+        if (type === 'logicalOperator' && flag && val === '&&') {
+          val = '||';
+        }
+
+        if (val) {
+          this.advSearchCriteria = (this.advSearchCriteria) ? this.advSearchCriteria.trim() : "";
+          if (this.advSearchCriteria === '(') {
+            this.advSearchCriteria = this.advSearchCriteria + val;
+          } else {
+            this.advSearchCriteria = this.advSearchCriteria + ' ' + val;
+          }
+          this.searchCriteriaOnRibbon = this.searchCriteriaOnRibbon + ' ' + valForRibbonCriteria;
+        }
+      });
+    }
+  }
+
+  /** formates the value of current obj */
+  getFormatedValue(val, item) {
+    let value = '';
+    let flag = /[()]/.test(val);
+    if (flag) {
+      value = this.getQuotedText(val);
+      value = this.checkWithBetweenOperator(value, item);
+    } else {
+      value = "'" + val + "'";
+    }
+    return value;
+  }
+
+  checkWithBetweenOperator(val, item) {
+    if (item.arithmeticOperator && !(item.arithmeticOperator.key == 'between' || item.arithmeticOperator.key == 'NT_bw')) {
+      val = "(" + val + ")";
+    }
+    return val;
+  }
+
+  /** returns the quoted text */
+  getQuotedText(val) {
+    let value = val.replace(/[()]/g, '');
+    value = value.trim();
+    let arr = value.split(',');
+    arr = arr.map(val => {
+      return "'" + val + "'";
+    });
+    value = arr.join(',');
+    return value;
+  }
+
+  /** updates val for like operator */
+  checkwithLikeOperator(val, item) {
+    if (item.arithmeticOperator && (item.arithmeticOperator.key === 'like' || item.arithmeticOperator.key === 'N_Lk')) {
+      val = '%' + val + '%';
+    }
+    return val;
+  }
+
+  checkWithLatLangOnNext(item, index) {
+    let isLatLangFlag = this.isLatLang(item);
+    let flag = false;
+    if (isLatLangFlag) {
+      let nextObj = this.getNextObj(item, index);
+      let current = item['column'];
+      let next = nextObj['column'];
+      let nextKey = (next) ? next.key : '';
+      if (current.key !== nextKey) {
+        flag = this.isLatLang(nextObj);
+      }
+    }
+    return flag;
+  }
+
+  getNextObj(item, index) {
+    let nextIndex = index + 1;
+    let nextObj = {};
+    if (item.parentId == '') {
+      nextObj = this.advSearchValList[nextIndex];
+    } else {
+      let parentObj = this.getParentObj(this.advSearchValList, item.parentId)
+      let group = parentObj.group;
+      nextObj = group[nextIndex];
+    }
+    return nextObj || {};
+  }
+
+  getParentObj(arr, id) {
+    let parentObj;
+    arr.forEach(item => {
+      if (!parentObj) {
+        if (item.hasGroup) {
+          if (item.id === id) {
+            parentObj = item;
+          } else {
+            parentObj = this.getParentObj(item.group, id)
+          }
+        }
+      }
+    });
+    return parentObj
+  }
+
+
+  isLatLang(item) {
+    let col = item['column'];
+    let key = (col) ? col.key : '';
+    let arr = ['locationLAT', 'locationLONG'];
+    let index = arr.findIndex(listItem => {
+      return listItem.toLowerCase() === key.toLowerCase();
+    });
+    let flag = (index != -1) ? true : false;
+    return flag;
+  }
+
+
+  /** handles the backspce event  */
+  handleBackSpace(event, item) {
+    let obj = this.getIdAndAttrFromEvent(event);
+    if (obj['id'] && obj['attr']) {
+      this.isLogicalOperator = (obj['attr'] === 'logicalOperator') ? true : false;
+      this.handleBackSpaceBasedOnOperator(obj, item);
+    }
+  }
+
+  /** handles the backspce event depends on operator */
+  handleBackSpaceBasedOnOperator(obj, item) {
+    switch (obj.attr) {
+      case 'paranthesis':
+        this.handleParenthesisOnBackSpace(obj, item);
+        break;
+      default:
+        this.handleBackSpaceOnDefaultCase(obj, item);
+    }
+    this.updateCriteriaStatusFlag();
+  }
+
+  /** handles the backspce event on default case */
+  handleBackSpaceOnDefaultCase(obj, item) {
+    if (obj.attr === 'arithmeticOperator') {
+      this.lastArithmeticOperator = item.arithmeticOperator;
+    }
+    item[obj.attr] = '';
+    if (obj.attr !== 'column') {
+      this.setColumnName(item.column);
+    }
+    this.currentObj = JSON.parse(JSON.stringify(item));
+    this.lastObj = JSON.parse(JSON.stringify(item));
+    this.checkWithEmpty(obj, item);
+    this.setFocusToPreviousText(obj);
+  }
+
+  setFocusToPreviousText(obj) {
+    let arr = ['column', 'arithmeticOperator', 'value', 'logicalOperator'];
+    let index = arr.findIndex(item => {
+      return (item === obj.attr);
+    });
+    if (index > 0) {
+      let targetId = obj.id + '-type-' + arr[index - 1];
+      let element = document.getElementById(targetId);
+      setTimeout(() => {
+        this.placeCaretAtEnd(element);
+      }, 1)
+    }
+  }
+
+  /** sets the cursor to the last position  */
+  placeCaretAtEnd(el) {
+    if (el) {
+      el.focus();
+    }
+    if (window.getSelection
+      && document.createRange) {
+      var range = document.createRange();
+      if (range) {
+        range.selectNodeContents(el);
+        range.collapse(false);
+        var sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+    }
+  }
+
+
+  /** will check and removes the current obj */
+  checkWithEmpty(obj, item) {
+    let arr = ['column', 'arithmeticOperator', 'value'];
+    let matchedList = arr.filter(str => {
+      return (item[str] === '');
+    });
+    if (matchedList.length === arr.length) {
+      this.currentGroupId = item.parentId;
+      this.removeObjFromList(obj);
+    }
+  }
+
+  /**  removes the current obj from the list*/
+  removeObjFromList(obj) {
+    if (this.currentGroupId === '') {
+      this.advSearchValList = this.removeObjFromGroup(this.advSearchValList, obj)
+    } else {
+      this.updateCurrentGroup(this.advSearchValList, this.currentGroupId, 'removeItem', obj);
+    }
+  }
+
+
+
+  /**  will be called on backspace event on parantheses*/
+  handleParenthesisOnBackSpace(obj, item) {
+    let type = obj.typeOfParenthesis;
+    if (type === 'start') {
+      if (item.parentId == '') {
+        let arr = this.getRejectedList(this.advSearchValList, obj.id);
+        this.advSearchValList = arr;
+      } else {
+        this.updateCurrentGroup(this.advSearchValList, item.parentId, 'empty', obj);
+      }
+      this.currentGroupId = item.parentId;
+    } else if (type === 'end') {
+      if (item.parentId == '') {
+        this.advSearchValList = this.removeCloseParanthesis(this.advSearchValList, obj)
+      } else {
+        this.updateCurrentGroup(this.advSearchValList, item.parentId, 'empty', obj);
+      }
+    }
+  }
+
+
+
+  /** handles the space event depends on place it triggered */
+  prepareQueryForAdvSearch(event, item) {
+    let obj = this.getIdAndAttrFromEvent(event);
+    if (item && item.type !== 'paranthesis') {
+      this.currentObj = JSON.parse(JSON.stringify(item));
+      this.currentGroupId = item.parentId;
+      this.lastObj = JSON.parse(JSON.stringify(item));
+      this.isLogicalOperator = (this.getTypeBasedOnLastValues()) ? false : true;
+    } else {
+      if (obj['typeOfParenthesis'] == 'start') {
+        this.isLogicalOperator = false;
+        this.emptyCurrentObj();
+        this.currentGroupId = item.id;
+      } else if (obj['typeOfParenthesis'] == 'end') {
+        this.isLogicalOperator = true;
+        this.lastObj = item;
+      }
+    }
+    if (obj['attr'] === 'logicalOperator') {
+      this.isLogicalOperator = false;
+      this.emptyCurrentObj()
+    }
+
+
+    this.displaySuggestionBox(event);
+  }
+
+  /** projects list of items in suggetion box */
+  displaySuggestionBox(event) {
+    this.udpateCurentObject();
+    this.showSuggetionBox = true;
+    this.setPositionOfSuggestionBox(event);
+    const type = this.getTypeOfList();
+    if (this.currentObj['type'] !== 'paranthesis') {
+      this.typeOfValue = this.getTypeOfValue();
+    }
+    if (type === 'value') {
+      this.typeOfSuggetion = 'value';
+      this.assignLookUpValues();
+    } else if (type) {
+      this.suggestionList = this.getSuggestionList(type);
+      this.typeOfSuggetion = 'list';
+    } else {
+      this.suggestionList = this.suggestions['logicalOperator'];
+      this.typeOfSuggetion = 'list';
+    }
+    this.addFocusToTheListElements()
+  }
+  addFocusToTheListElements() {
+    setTimeout(() => {
+      this.lastIndex = 0;
+      this.addHighLightClass(this.lastIndex, '#suggestion-list-element', 'down');
+    }, 1);
+  }
+
+  /** returns type of suggestion list */
+  getSuggestionList(type) {
+    let list = [];
+    if (type == 'arithmeticOperator') {
+      list = this.filterArithmeticOperator(type);
+    } else {
+      list = this.suggestions[type];
+    }
+    return list;
+  }
+
+  /** dicides which arithmetic operators to be listed based on data type of selected column */
+  filterArithmeticOperator(type) {
+    let arr = JSON.parse(JSON.stringify(this.suggestions[type]));
+    arr = arr.filter(item => {
+      let allowedTypes = item.allowedTo;
+      const obj = allowedTypes.find(type => {
+        return (type === this.typeOfValue);
+      });
+      let flag = (obj) ? true : false;
+      return flag;
+    });
+    return arr;
+  }
+
+
+  /** assigns to lookupvalues list array with current lookup values */
+  assignLookUpValues() {
+    if (this.typeOfValue === 'dropdown') {
+      this.listOfLookUpValues = this[this.columnName];
+      this.convertToListOfObj()
+    }
+  }
+
+  /** converts the list of strings to list of objects */
+  convertToListOfObj() {
+    this.listOfLookUpValues = this.listOfLookUpValues.map(value => {
+      let obj = {}
+      obj['value'] = value;
+      obj['selected'] = false;
+      return obj;
+    })
+  }
+
+
+  /** returns the column type in current obj */
+  getTypeOfValue() {
+    let col = this.currentObj.column;
+    let type = this.getColDataType(col);
+    return type;
+  }
+
+
+  /** returns the column type in current obj */
+  getColDataType(col) {
+    let type = col.columnDataType;
+    if (type === 'location') {
+      type = 'between';
+    }
+    return type;
+  }
+
+  /** returns the type of list to be projected */
+  getTypeOfList() {
+    let type;
+    if (!this.isLogicalOperator) {
+      type = this.getTypeBasedOnLastValues();
+    } else if (this.advSearchValList.length == 0) {
+      type = 'column';
+    } else {
+      type = 'logicalOperator'
+    }
+    return type;
+  }
+
+
+  /** sets the possition of suggestion box with event offeset */
+  setPositionOfSuggestionBox(event) {
+    setTimeout(() => {
+
+      let el = document.getElementById('suggestionBoxContainer');
+      if (el) {
+        if (event.currentTarget.id == "display-criteria") {
+          el.style.left = event.currentTarget.offsetLeft + 'px';
+        } else {
+          this.setPositionBasedOnDocumentObj(event, document, el);
+        }
+      }
+    }, 0);
+  }
+
+  /** sets the possition of suggestion box with event offeset */
+  setPositionBasedOnDocumentObj(event, docObj, el) {
+    let offsetLeft = event.currentTarget.offsetLeft;
+    let docClientWidth = docObj.scrollingElement.clientWidth;
+    if (offsetLeft < docClientWidth) {
+      el.style.left = offsetLeft + 'px';
+    } else {
+      el.style.left = 500 + 'px';
+    }
+  }
+
+
+
+  /** returns the type of list based on last values in current object*/
+  getTypeBasedOnLastValues() {
+    let type = '';
+    let array = ['column', 'arithmeticOperator', 'value'];
+    type = array.find(key => {
+      return (this.currentObj[key] === '')
+    });
+    if (!type && this.currentObj.logicalOperator != '') {
+      type = 'column';
+      this.emptyCurrentObj();
+    }
+    return type;
+  }
+
+
+
+  /**  reads events attributes and returns*/
+  getIdAndAttrFromEvent(event) {
+    const targetEle = event.currentTarget;
+    let idWithattr = (targetEle) ? targetEle.id : '';
+    let array = idWithattr.split('-type-');
+    const obj = {}
+    obj['id'] = array[0];
+    obj['attr'] = array[1];
+    if (array[2]) {
+      obj['typeOfParenthesis'] = array[2];
+    }
+    return obj;
+  }
+
+
 
   clickedOnSearchCriteria() {
     console.log('clicked on search criteria');
@@ -459,7 +992,7 @@ export class AdvSearchComponent implements OnInit {
     if (this.lastSelectedItem.parentId === '') {
       this.advSearchValList.push(this.lastSelectedItem);
     } else {
-      this.updateCurrentGroup(this.advSearchValList, this.lastSelectedItem.parentId, 'addItem');                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   (this.advSearchValList, this.lastSelectedItem.parentId, 'addItem');
+      this.updateCurrentGroup(this.advSearchValList, this.lastSelectedItem.parentId, 'addItem'); (this.advSearchValList, this.lastSelectedItem.parentId, 'addItem');
     }
   }
 
@@ -696,7 +1229,6 @@ export class AdvSearchComponent implements OnInit {
     });
     if (index !== -1) {
       arr.splice(index, 1);
-      // delete scope.searchObj[scope.columnKey];
       prvEleIndex = index - 1;
       if (prvEleIndex < 0) {
         this.emptyCurrentObj();

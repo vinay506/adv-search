@@ -16,7 +16,7 @@
             *ngIf="item.logicalOperator && item.logicalOperator.key != ''"  (click)="lastElementFocus($event,item)">{{item.logicalOperator.displayName}}</div>
     </div>
     <span *ngIf="item.hasGroup">
-        <display-search-criteria [list]="item.group" [searchCriteria]="searchCriteria" [handleKeydown]="onKeyDown" [focusOnlastElement]="lastElementFocus"></display-search-criteria>
+        <display-search-criteria [list]="item.group" [searchCriteria]="searchCriteria" (handleKeydown)="onKeyDown($event)" (focusOnlastElement)="lastElementFocus($event)"></display-search-criteria>
     </span>
 
 </div>

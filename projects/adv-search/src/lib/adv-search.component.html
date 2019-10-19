@@ -6,7 +6,14 @@
         <i *ngIf="advSearchValList.length != 0 && !statusOfSearchCriteria" class="fa fa-times" aria-hidden="true" (click)="clickedOnClearCriteria()"></i>
     </div>
     <div title="{{advSearchCriteria}}" *ngIf="advSearchValList.length > 0">
-       <h1>Test</h1> 
+        <div class="searchbox-editableDiv" title="{{advSearchCriteria}}">
+            <span class="status-circle" [ngClass]="{'correct-mark': statusOfSearchCriteria, 'error-mark': !statusOfSearchCriteria }"></span>
+            <div class="editable-div content-viewer"  id="display-criteria" contenteditable="true" (keydown)="clickedOnParent($event)" (click)="focusOnLastElement()">
+                <display-search-criteria class="display-flex" [list]="advSearchValList" [searchCriteria]="advSearchCriteria" (handleKeydown)="onKeyDown($event)" (focusOnlastElement)="setCursorAtEnd($event)"></display-search-criteria>
+            </div>
+        </div>
+        <i *ngIf="advSearchValList.length == 0 ||  statusOfSearchCriteria" class="fa fa-search" aria-hidden="true" (click)="clickedOnSearchCriteria()"></i>
+        <i *ngIf="advSearchValList.length != 0 && !statusOfSearchCriteria" class="fa fa-times" aria-hidden="true" (click)="clickedOnClearCriteria()"></i>
     </div>
     <div *ngIf="showSuggetionBox" id="suggestionBoxContainer" class="suggestion-list">
             <li (click)="selectListElement(col,$event)" id="suggestion-list-element" *ngFor="let col of suggestionList">{{col.displayName}}</li>
