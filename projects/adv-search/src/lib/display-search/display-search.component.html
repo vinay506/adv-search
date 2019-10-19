@@ -1,0 +1,22 @@
+<div class="editable-div" id="{{item.id}}" *ngFor="let item of list" contenteditable="false">
+    <div class="editable-div padding-l-r" *ngIf="item.type === 'paranthesis'">
+        <div class="editable-div padding-l-r editable-div-content" id="{{item.id + '-type-paranthesis-type-' + item.typeOfParanthesis}}" contenteditable="true"
+            (keydown)="onKeyDown($event,item)" *ngIf="item.displayName != ''"  (click)="lastElementFocus($event,item)">{{item.displayName}}</div>
+        <div class="editable-div padding-l-r editable-div-content" contenteditable="true" (keydown)="onKeyDown($event,item)" id="{{item.id + '-type-logicalOperator'}}"
+            *ngIf="item.typeOfParanthesis == 'end' &&  (item.logicalOperator && item.logicalOperator.key != '')"  (click)="lastElementFocus($event,item)">{{item.logicalOperator.displayName}}</div>
+    </div>
+    <div  class="display-flex" *ngIf="!item.hasGroup && item.type != 'paranthesis'">
+        <div class="editable-div padding-l-r editable-div-content" contenteditable="true" (keydown)="onKeyDown($event,item)" id="{{item.id + '-type-column'}}"
+            *ngIf="item.column && item.column.displayName != ''"  (click)="lastElementFocus($event,item)">{{item.column.displayName}}</div>
+        <div class="editable-div padding-l-r editable-div-content" contenteditable="true" (keydown)="onKeyDown($event,item)" id="{{item.id + '-type-arithmeticOperator'}}"
+            *ngIf="item.arithmeticOperator && item.arithmeticOperator.key != ''"  (click)="lastElementFocus($event,item)">{{item.arithmeticOperator.displayName}}</div>
+        <div class="editable-div padding-l-r editable-div-content" contenteditable="true" (keydown)="onKeyDown($event,item)" id="{{item.id + '-type-value'}}"
+            *ngIf="item.value != ''"  (click)="lastElementFocus($event,item)">{{item.value}}</div>
+        <div class="editable-div padding-l-r editable-div-content" contenteditable="true" (keydown)="onKeyDown($event,item)" id="{{item.id + '-type-logicalOperator'}}"
+            *ngIf="item.logicalOperator && item.logicalOperator.key != ''"  (click)="lastElementFocus($event,item)">{{item.logicalOperator.displayName}}</div>
+    </div>
+    <span *ngIf="item.hasGroup">
+        <display-search-criteria [list]="item.group" [searchCriteria]="searchCriteria" [handleKeydown]="onKeyDown" [focusOnlastElement]="lastElementFocus"></display-search-criteria>
+    </span>
+
+</div>
