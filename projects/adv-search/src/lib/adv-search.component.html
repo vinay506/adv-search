@@ -1,7 +1,7 @@
 
 <div class="search-box-container">
     <div title="{{advSearchCriteria}}" *ngIf="advSearchValList.length == 0">
-        <input class="form-control adv-search-box" placeholder="Please enter Space to continue" (keydown)="onKeyDown($event)">
+        <input class="form-control adv-search-box" placeholder="Please enter Space to continue" (keydown)="onKeyDown({'event':$event})">
         <i *ngIf="advSearchValList.length == 0 ||  statusOfSearchCriteria" class="fa fa-search" aria-hidden="true" (click)="clickedOnSearchCriteria()"></i>
         <i *ngIf="advSearchValList.length != 0 && !statusOfSearchCriteria" class="fa fa-times" aria-hidden="true" (click)="clickedOnClearCriteria()"></i>
     </div>
